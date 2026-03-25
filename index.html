@@ -7,7 +7,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         :root {
             --bg-primary: #0E0D11;
             --bg-secondary: #1a191f;
@@ -17,7 +16,6 @@
             --accent: #c084fc;
             --success: #6ee659;
         }
-
         html, body { height: 100%; background: var(--bg-primary); color: var(--text-primary); font-family: 'Segoe UI', system-ui, sans-serif; }
         body { display: flex; flex-direction: column; }
 
@@ -30,41 +28,84 @@
         .sync-dot.ok { background: var(--success); }
         .sync-dot.syncing { background: var(--accent); animation: pulse 1s infinite; }
         .sync-dot.error { background: #f87171; }
-
         .date-nav { display: flex; gap: 6px; align-items: center; }
         .date-btn { padding: 3px 8px; background: var(--bg-tertiary); border: 1px solid var(--bg-primary); color: var(--text-secondary); border-radius: 3px; cursor: pointer; font-size: 9px; transition: all 0.2s; }
         .date-btn.today { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
         .current-date { color: var(--text-primary); font-weight: 600; font-size: 10px; min-width: 80px; text-align: center; }
 
-        /* CALENDAR */
+        /* CALENDARIO */
         .calendar-section { background: var(--bg-secondary); border-bottom: 1px solid var(--bg-tertiary); padding: 10px 16px; flex-shrink: 0; }
         .calendar-title { font-size: 9px; font-weight: 600; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
-        .calendar-week { display: grid; grid-template-columns: repeat(7, minmax(40px, 40px)); gap: 4px; }
-        .calendar-day { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--bg-tertiary); border-radius: 3px; background: var(--bg-tertiary); color: var(--text-secondary); font-size: 10px; cursor: pointer; transition: all 0.2s; position: relative; font-weight: 500; }
+        .calendar-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-day {
+            height: 40px; display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--bg-tertiary); border-radius: 3px;
+            background: var(--bg-tertiary); color: var(--text-secondary);
+            font-size: 10px; cursor: pointer; transition: all 0.15s; position: relative; font-weight: 500;
+        }
+        .calendar-day:hover { background: #2e2d37; color: var(--text-primary); border-color: var(--accent); }
         .calendar-day.today { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
-        .calendar-day.completed::after { content: '✓'; position: absolute; top: -2px; right: 0px; font-size: 6px; color: var(--success); }
+        .calendar-day.selected { background: rgba(192,132,252,0.22); color: var(--accent); border-color: var(--accent); }
+        .calendar-day.today.selected { background: var(--accent); color: var(--bg-primary); }
+        .calendar-day.completed::after { content: '✓'; position: absolute; top: 1px; right: 3px; font-size: 7px; color: var(--success); }
+
+        /* AYUNO */
+        .fasting-panel { background: var(--bg-secondary); border-bottom: 1px solid var(--bg-tertiary); padding: 12px 16px; flex-shrink: 0; }
+        .fasting-panel-title { font-size: 9px; font-weight: 600; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+        .fasting-top { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 10px; }
+        .fasting-display { display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+        .fasting-time { font-size: 22px; font-weight: 700; color: rgba(110, 230, 89, 0.5); font-family: 'Courier New', monospace; }
+        .fasting-stage-name { font-size: 10px; color: var(--accent); font-weight: 700; }
+        .fasting-stage-desc { font-size: 8px; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; max-width: 220px; }
+        .fasting-controls { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+        .btn-fasting { padding: 7px 16px; border-radius: 3px; cursor: pointer; font-size: 10px; font-weight: 700; text-transform: uppercase; transition: all 0.2s; border: 1px solid transparent; }
+        .btn-fasting-start { background: var(--success); color: var(--bg-primary); border-color: var(--success); }
+        .btn-fasting-start.active { background: #f87171; border-color: #f87171; }
+        .btn-fasting-reset { background: var(--bg-tertiary); color: var(--text-secondary); border-color: var(--bg-primary); }
+        .btn-fasting-reset:hover { color: var(--text-primary); border-color: var(--accent); }
+
+        /* Barra progreso ayuno */
+        .fasting-bar-wrap { width: 100%; }
+        .fasting-track { width: 100%; height: 16px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden; border: 1px solid var(--bg-primary); }
+        .fasting-fill { height: 100%; width: 0%; transition: width 0.5s ease; border-radius: 4px;
+            background: linear-gradient(90deg, #3b82f6 0%, #6ee659 25%, #c084fc 65%, #e5c3ff 100%); }
+        .fasting-ticks { display: flex; position: relative; height: 28px; margin-top: 3px; }
+        .fasting-tick { position: absolute; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .fasting-tick-line { width: 1px; height: 4px; background: var(--bg-tertiary); }
+        .fasting-tick.reached .fasting-tick-line { background: var(--accent); }
+        .fasting-tick-label { font-size: 6.5px; color: var(--text-secondary); font-weight: 600; white-space: nowrap; text-align: center; line-height: 1.2; }
+        .fasting-tick.reached .fasting-tick-label { color: var(--accent); }
+        .fasting-tick.current .fasting-tick-label { color: var(--success); }
+        .fasting-tick.current .fasting-tick-line { background: var(--success); width: 2px; }
 
         /* MAIN */
-        .main-content { display: grid; grid-template-columns: 1fr; gap: 12px; flex: 1; overflow: hidden; padding: 12px; }
+        .main-content { display: flex; flex-direction: column; gap: 10px; flex: 1; overflow: hidden; padding: 12px; }
 
-        .stats-panel { background: var(--bg-secondary); border: 1px solid var(--bg-tertiary); border-radius: 4px; padding: 10px; }
+        .stats-panel { background: var(--bg-secondary); border: 1px solid var(--bg-tertiary); border-radius: 4px; padding: 10px; flex-shrink: 0; }
         .stats-title { font-size: 9px; font-weight: 600; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
         .stat-box { background: var(--bg-tertiary); padding: 6px; border-radius: 3px; text-align: center; }
         .stat-value { font-size: 16px; font-weight: 700; color: var(--accent); font-family: 'Courier New', monospace; }
         .stat-label { font-size: 7px; color: var(--text-secondary); margin-top: 2px; text-transform: uppercase; }
 
-        .center-panel { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
-        .timeline-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-shrink: 0; }
-        .timeline-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-primary); }
+        /* ENTRENAMIENTO */
+        .workout-panel { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; overflow: hidden; }
+        .workout-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+        .workout-header-left { display: flex; align-items: center; gap: 10px; }
+        .workout-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-primary); }
         .routine-selector { display: flex; gap: 4px; }
         .routine-btn { padding: 5px 10px; background: var(--bg-tertiary); border: 1px solid var(--bg-primary); color: var(--text-secondary); border-radius: 3px; cursor: pointer; font-size: 9px; font-weight: 700; transition: all 0.2s; }
         .routine-btn:hover { border-color: var(--accent); }
         .routine-btn.active { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
+        .workout-actions { display: flex; gap: 6px; }
+        .btn-workout { padding: 7px 16px; border-radius: 3px; cursor: pointer; font-size: 10px; font-weight: 700; text-transform: uppercase; transition: all 0.2s; }
+        .btn-iniciar { background: var(--accent); color: var(--bg-primary); border: none; }
+        .btn-iniciar:hover { opacity: 0.9; }
+        .btn-reset-w { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--bg-tertiary); }
+        .btn-reset-w:hover { border-color: var(--accent); }
 
         .timeline-wrapper { flex: 1; display: flex; flex-direction: column; background: var(--bg-secondary); border: 1px solid var(--bg-tertiary); border-radius: 4px; overflow: hidden; min-height: 0; }
         .timeline-container { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
-
         .timeline-block { background: var(--bg-tertiary); border: 1px solid var(--bg-primary); border-radius: 3px; padding: 10px; flex-shrink: 0; min-height: 80px; display: flex; flex-direction: column; }
         .timeline-block.completed { border-color: var(--success); opacity: 0.5; }
         .block-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; margin-bottom: 4px; }
@@ -72,32 +113,26 @@
         .block-title { font-size: 10px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; margin-bottom: 2px; }
         .block-exercises { font-size: 9px; color: var(--text-primary); line-height: 1.3; }
         .block-timer { text-align: right; flex-shrink: 0; }
-        .timer-main { font-size: 14px; font-weight: 700; color: var(--accent); font-family: 'Courier New', monospace; }
+        .timer-main { font-size: 14px; font-weight: 700; color: rgba(110, 230, 89, 0.5); font-family: 'Courier New', monospace; }
         .timer-type { font-size: 7px; color: var(--text-secondary); }
-        .progress-bar { width: 100%; height: 2px; background: var(--bg-primary); border-radius: 1px; overflow: hidden; margin: 4px 0; }
-        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s linear; }
-        .block-controls { display: flex; gap: 4px; margin-top: 2px; }
-        .btn-mark { flex: 1; padding: 3px 4px; background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 2px; color: var(--accent); font-size: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .btn-mark:hover { background: var(--accent); color: var(--bg-primary); }
-
-        /* FOOTER */
-        .footer { background: var(--bg-secondary); border-top: 1px solid var(--bg-tertiary); padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
-        .fasting-section { display: flex; align-items: center; gap: 12px; }
-        .fasting-display { display: flex; flex-direction: column; gap: 1px; }
-        .fasting-time { font-size: 16px; font-weight: 700; color: var(--success); font-family: 'Courier New', monospace; }
-        .fasting-label { font-size: 8px; color: var(--text-secondary); text-transform: uppercase; }
-        .fasting-stage { font-size: 9px; color: var(--accent); font-weight: 600; }
-        .fasting-stages { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; flex: 1; }
-        .stage { height: 16px; background: var(--bg-tertiary); border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 6px; font-weight: 600; color: var(--text-secondary); position: relative; overflow: hidden; border: 1px solid var(--bg-primary); }
-        .stage.active { color: var(--bg-primary); border-color: var(--accent); }
-        .stage-fill { position: absolute; left: 0; top: 0; height: 100%; background: rgba(192, 132, 252, 0.5); }
-        .stage.active .stage-fill { background: var(--accent); }
-        .fasting-controls { display: flex; gap: 4px; }
-        .btn-small { padding: 2px 5px; background: var(--bg-tertiary); border: 1px solid var(--bg-primary); color: var(--text-secondary); border-radius: 2px; cursor: pointer; font-size: 7px; font-weight: 600; transition: all 0.2s; }
-        .btn-small:hover { background: var(--accent); color: var(--bg-primary); }
-        .footer-actions { display: flex; gap: 8px; }
-        .btn-start { padding: 6px 12px; background: var(--accent); color: var(--bg-primary); border: none; border-radius: 3px; cursor: pointer; font-size: 10px; font-weight: 700; text-transform: uppercase; }
-        .btn-reset { padding: 6px 12px; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--bg-primary); border-radius: 3px; cursor: pointer; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+        .btn-mark {
+            width: 100%; height: 24px; margin-top: 6px;
+            position: relative; overflow: hidden;
+            background: var(--bg-primary); border: 1px solid #333;
+            border-radius: 3px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-secondary); font-size: 9px; font-weight: 700;
+            letter-spacing: 0.05em; transition: color 0.2s, border-color 0.2s;
+        }
+        .btn-mark-fill {
+            position: absolute; left: 0; top: 0; height: 100%; width: 0%;
+            background: rgba(192, 132, 252, 0.70);
+            transition: width 0.1s linear;
+            pointer-events: none; border-radius: 3px;
+        }
+        .btn-mark-fill.done { background: rgba(110, 230, 89, 0.70); width: 100% !important; }
+        .btn-mark.done { color: var(--success); border-color: var(--success); }
+        .btn-mark span { position: relative; z-index: 1; }
 
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
         .timer-active { animation: pulse 1s infinite; }
@@ -126,6 +161,25 @@
     <div class="calendar-week" id="calendar-week"></div>
 </section>
 
+<section class="fasting-panel">
+    <div class="fasting-panel-title">Ayuno intermitente</div>
+    <div class="fasting-top">
+        <div class="fasting-display">
+            <div class="fasting-time" id="fasting-time">00:00:00</div>
+            <div class="fasting-stage-name" id="fasting-stage-name">Alimentado</div>
+            <div class="fasting-stage-desc" id="fasting-stage-desc">Digiriendo • Insulina alta • Energía de glucosa</div>
+        </div>
+        <div class="fasting-controls">
+            <button class="btn-fasting btn-fasting-start" id="btn-fasting-start">Iniciar</button>
+            <button class="btn-fasting btn-fasting-reset" id="btn-fasting-reset">Reset</button>
+        </div>
+    </div>
+    <div class="fasting-bar-wrap">
+        <div class="fasting-track"><div class="fasting-fill" id="fasting-fill"></div></div>
+        <div class="fasting-ticks" id="fasting-ticks"></div>
+    </div>
+</section>
+
 <div class="main-content">
     <div class="stats-panel">
         <div class="stats-title">Stats</div>
@@ -136,10 +190,16 @@
             <div class="stat-box"><div class="stat-value" id="stat-today">—</div><div class="stat-label">Hoy</div></div>
         </div>
     </div>
-    <div class="center-panel">
-        <div class="timeline-header">
-            <div class="timeline-title">Entrenamiento</div>
-            <div class="routine-selector" id="routine-selector"></div>
+    <div class="workout-panel">
+        <div class="workout-header">
+            <div class="workout-header-left">
+                <div class="workout-title">Entrenamiento</div>
+                <div class="routine-selector" id="routine-selector"></div>
+            </div>
+            <div class="workout-actions">
+                <button class="btn-workout btn-iniciar" id="btn-start-workout">INICIAR</button>
+                <button class="btn-workout btn-reset-w" id="btn-reset-workout">RESET</button>
+            </div>
         </div>
         <div class="timeline-wrapper">
             <div class="timeline-container" id="timeline-container"></div>
@@ -147,137 +207,108 @@
     </div>
 </div>
 
-<footer class="footer">
-    <div class="fasting-section">
-        <div class="fasting-display">
-            <div class="fasting-time" id="fasting-time">00:00:00</div>
-            <div class="fasting-label">Ayuno</div>
-            <div class="fasting-stage" id="fasting-stage">Digestión</div>
-        </div>
-        <div class="fasting-stages" id="fasting-stages"></div>
-        <div class="fasting-controls">
-            <button class="btn-small" id="btn-fasting-start">Ini</button>
-            <button class="btn-small" id="btn-fasting-reset">Reset</button>
-        </div>
-    </div>
-    <div class="footer-actions">
-        <button class="btn-start" id="btn-start-workout">INICIAR</button>
-        <button class="btn-reset" id="btn-reset-workout">RESET</button>
-    </div>
-</footer>
-
 <script>
-    // ── SUPABASE ──────────────────────────────────────────────
     const SUPABASE_URL = 'https://tbhrpphmscndekpnnerl.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiaHJwcGhtc2NuZGVrcG5uZXJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODI4NjcsImV4cCI6MjA4OTM1ODg2N30.6KH1xDoqg_CLM5K4P1f_YVEUi111s5Z4Xtn90fF0FFU';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     function setSyncStatus(status, label) {
-        const dot = document.getElementById('sync-dot');
-        const lbl = document.getElementById('sync-label');
-        dot.className = 'sync-dot ' + status;
-        lbl.textContent = label;
+        document.getElementById('sync-dot').className = 'sync-dot ' + status;
+        document.getElementById('sync-label').textContent = label;
     }
 
-    // ── DATOS ─────────────────────────────────────────────────
+    // ── ETAPAS DE AYUNO ───────────────────────────────────────
+    const FASTING_MAX_H = 24;
     const fastingStages = [
-        { name: 'Digestión', hours: 0 },
-        { name: 'Quema Grasa', hours: 8 },
-        { name: 'Cetosis', hours: 16 },
-        { name: 'Autofagia', hours: 24 },
-        { name: 'Autofagia+', hours: 48 }
+        { name: 'Alimentado',    hours: 0,  desc: 'Digiriendo • Insulina alta • Energía de glucosa' },
+        { name: 'Inicio ayuno',  hours: 4,  desc: 'Baja insulina • Cuerpo usa glucógeno del hígado' },
+        { name: 'Cambio metab.', hours: 12, desc: 'Glucógeno agotado • Empieza quema de grasa' },
+        { name: 'Quema grasa',   hours: 16, desc: 'Modo grasa • Cetonas • Posible claridad mental' },
+        { name: 'Autofagia',     hours: 24, desc: 'Reciclaje celular activo • Insulina muy baja' },
+
     ];
 
+    // ── RUTINAS ───────────────────────────────────────────────
     const routineData = {
         1: { name: "Pierna Fuerte", blocks: [
-            { id: "w",   title: "Activación",      duration: 300,  type: "warmup",   exercises: "Golpes 1kg • Rodillas • Movilidad" },
-            { id: "c1q", title: "Ciclo 1 Quema",   duration: 420,  type: "cardio",   exercises: "Jump squat • Sent+Punch • Lateral lunge" },
-            { id: "c1f", title: "Ciclo 1 Fuerza",  duration: 180,  type: "strength", exercises: "Sent goblet+Press 5kg" },
-            { id: "c2q", title: "Ciclo 2 Quema",   duration: 420,  type: "cardio",   exercises: "Zancadas • Hip thrust • DL jump" },
-            { id: "c2f", title: "Ciclo 2 Fuerza",  duration: 180,  type: "strength", exercises: "Peso muerto+Fila 5kg" },
-            { id: "c3q", title: "Ciclo 3 Quema",   duration: 420,  type: "cardio",   exercises: "Burpee • Sent+Golpe • Mountain climbers" },
-            { id: "c3f", title: "Ciclo 3 Fuerza",  duration: 180,  type: "strength", exercises: "Lunge+Remo 5kg" },
-            { id: "c4q", title: "Ciclo 4 Quema",   duration: 420,  type: "cardio",   exercises: "Sent rápida • Golpes+Rodillas • Lateral lunge" },
-            { id: "c4f", title: "Ciclo 4 Fuerza",  duration: 180,  type: "strength", exercises: "Clean+Squat+Press 5kg" },
-            { id: "c5q", title: "Ciclo 5 Quema",   duration: 300,  type: "cardio",   exercises: "Jump squat • Punch • High knees • Burpee" },
-            { id: "c5f", title: "Ciclo 5 Fuerza",  duration: 300,  type: "strength", exercises: "Sent+Press • Zancada+Remo • DM" },
-            { id: "cd",  title: "Cool-down",        duration: 600,  type: "cooldown", exercises: "Caminata • Stretching • Respiración" }
+            { id: "w",   title: "Activación",     duration: 300, type: "warmup",   exercises: "Golpes 1kg • Rodillas • Movilidad" },
+            { id: "c1q", title: "Ciclo 1 Quema",  duration: 420, type: "cardio",   exercises: "Jump squat • Sent+Punch • Lateral lunge" },
+            { id: "c1f", title: "Ciclo 1 Fuerza", duration: 180, type: "strength", exercises: "Sent goblet+Press 5kg" },
+            { id: "c2q", title: "Ciclo 2 Quema",  duration: 420, type: "cardio",   exercises: "Zancadas • Hip thrust • DL jump" },
+            { id: "c2f", title: "Ciclo 2 Fuerza", duration: 180, type: "strength", exercises: "Peso muerto+Fila 5kg" },
+            { id: "c3q", title: "Ciclo 3 Quema",  duration: 420, type: "cardio",   exercises: "Burpee • Sent+Golpe • Mountain climbers" },
+            { id: "c3f", title: "Ciclo 3 Fuerza", duration: 180, type: "strength", exercises: "Lunge+Remo 5kg" },
+            { id: "c4q", title: "Ciclo 4 Quema",  duration: 420, type: "cardio",   exercises: "Sent rápida • Golpes+Rodillas • Lateral lunge" },
+            { id: "c4f", title: "Ciclo 4 Fuerza", duration: 180, type: "strength", exercises: "Clean+Squat+Press 5kg" },
+            { id: "c5q", title: "Ciclo 5 Quema",  duration: 300, type: "cardio",   exercises: "Jump squat • Punch • High knees • Burpee" },
+            { id: "c5f", title: "Ciclo 5 Fuerza", duration: 300, type: "strength", exercises: "Sent+Press • Zancada+Remo • DM" },
+            { id: "cd",  title: "Cool-down",       duration: 600, type: "cooldown", exercises: "Caminata • Stretching • Respiración" }
         ]},
         2: { name: "Cardio Alto", blocks: [
-            { id: "w",   title: "Activación",      duration: 300,  type: "warmup",   exercises: "Golpes 1kg • Rodillas rápido • Movilidad" },
-            { id: "c1q", title: "Ciclo 1 Quema",   duration: 420,  type: "cardio",   exercises: "Punch 1kg • Sent+Overhead punch • Lateral raise" },
-            { id: "c1f", title: "Ciclo 1 Fuerza",  duration: 180,  type: "strength", exercises: "Press+Sent 5kg" },
-            { id: "c2q", title: "Ciclo 2 Quema",   duration: 420,  type: "cardio",   exercises: "Lateral lunge+Raise • Side-to-side • Punch lateral" },
-            { id: "c2f", title: "Ciclo 2 Fuerza",  duration: 180,  type: "strength", exercises: "Lateral lunge+Press unilateral 5kg" },
-            { id: "c3q", title: "Ciclo 3 Quema",   duration: 420,  type: "cardio",   exercises: "Sent+Punch • Zancada+Golpe • Burpee • High knees" },
-            { id: "c3f", title: "Ciclo 3 Fuerza",  duration: 180,  type: "strength", exercises: "Clean+Squat+Press 5kg" },
-            { id: "c4q", title: "Ciclo 4 HIIT",    duration: 420,  type: "cardio",   exercises: "Jump squat • Burpee • Mountain climbers • Punch" },
-            { id: "c4f", title: "Ciclo 4 Fuerza",  duration: 180,  type: "strength", exercises: "Peso muerto+Remo+Golpe 5kg" },
-            { id: "c5q", title: "Ciclo 5 Quema",   duration: 300,  type: "cardio",   exercises: "Burpee • Punch • Jump squat • High knees" },
-            { id: "c5f", title: "Ciclo 5 Fuerza",  duration: 300,  type: "strength", exercises: "Sent+Press • Clean+Press • DM" },
-            { id: "cd",  title: "Cool-down",        duration: 600,  type: "cooldown", exercises: "Caminata • Stretching • Respiración" }
+            { id: "w",   title: "Activación",     duration: 300, type: "warmup",   exercises: "Golpes 1kg • Rodillas rápido • Movilidad" },
+            { id: "c1q", title: "Ciclo 1 Quema",  duration: 420, type: "cardio",   exercises: "Punch 1kg • Sent+Overhead punch • Lateral raise" },
+            { id: "c1f", title: "Ciclo 1 Fuerza", duration: 180, type: "strength", exercises: "Press+Sent 5kg" },
+            { id: "c2q", title: "Ciclo 2 Quema",  duration: 420, type: "cardio",   exercises: "Lateral lunge+Raise • Side-to-side • Punch lateral" },
+            { id: "c2f", title: "Ciclo 2 Fuerza", duration: 180, type: "strength", exercises: "Lateral lunge+Press unilateral 5kg" },
+            { id: "c3q", title: "Ciclo 3 Quema",  duration: 420, type: "cardio",   exercises: "Sent+Punch • Zancada+Golpe • Burpee • High knees" },
+            { id: "c3f", title: "Ciclo 3 Fuerza", duration: 180, type: "strength", exercises: "Clean+Squat+Press 5kg" },
+            { id: "c4q", title: "Ciclo 4 HIIT",   duration: 420, type: "cardio",   exercises: "Jump squat • Burpee • Mountain climbers • Punch" },
+            { id: "c4f", title: "Ciclo 4 Fuerza", duration: 180, type: "strength", exercises: "Peso muerto+Remo+Golpe 5kg" },
+            { id: "c5q", title: "Ciclo 5 Quema",  duration: 300, type: "cardio",   exercises: "Burpee • Punch • Jump squat • High knees" },
+            { id: "c5f", title: "Ciclo 5 Fuerza", duration: 300, type: "strength", exercises: "Sent+Press • Clean+Press • DM" },
+            { id: "cd",  title: "Cool-down",       duration: 600, type: "cooldown", exercises: "Caminata • Stretching • Respiración" }
         ]},
         3: { name: "Equilibrado", blocks: [
-            { id: "w",   title: "Activación",      duration: 300,  type: "warmup",   exercises: "Golpes 1kg • Rodillas • Movilidad" },
-            { id: "c1q", title: "Ciclo 1 Quema",   duration: 420,  type: "cardio",   exercises: "Push+Squat • Lateral raise • Punch" },
-            { id: "c1f", title: "Ciclo 1 Fuerza",  duration: 180,  type: "strength", exercises: "Squat+Overhead Press 5kg" },
-            { id: "c2q", title: "Ciclo 2 Quema",   duration: 420,  type: "cardio",   exercises: "Remo+Zancada • Lateral lunge+Raise • Golpes" },
-            { id: "c2f", title: "Ciclo 2 Fuerza",  duration: 180,  type: "strength", exercises: "Zancada+Remo 5kg" },
-            { id: "c3q", title: "Ciclo 3 Quema",   duration: 420,  type: "cardio",   exercises: "Hip thrust • Deadlift+Punch • Reverse lunge" },
-            { id: "c3f", title: "Ciclo 3 Fuerza",  duration: 180,  type: "strength", exercises: "Peso muerto rumano+Fila 5kg" },
-            { id: "c4q", title: "Ciclo 4 Quema",   duration: 420,  type: "cardio",   exercises: "Plank+Golpes • Dead bug • Pallof press" },
-            { id: "c4f", title: "Ciclo 4 Fuerza",  duration: 180,  type: "strength", exercises: "Anti-rotation Press+Lunge 5kg" },
-            { id: "c5q", title: "Ciclo 5 Quema",   duration: 300,  type: "cardio",   exercises: "Sent • Punch • Lunge walking" },
-            { id: "c5f", title: "Ciclo 5 Fuerza",  duration: 300,  type: "strength", exercises: "Sent goblet • Remo • Combos débiles" },
-            { id: "cd",  title: "Cool-down",        duration: 600,  type: "cooldown", exercises: "Caminata • Stretching • Respiración" }
+            { id: "w",   title: "Activación",     duration: 300, type: "warmup",   exercises: "Golpes 1kg • Rodillas • Movilidad" },
+            { id: "c1q", title: "Ciclo 1 Quema",  duration: 420, type: "cardio",   exercises: "Push+Squat • Lateral raise • Punch" },
+            { id: "c1f", title: "Ciclo 1 Fuerza", duration: 180, type: "strength", exercises: "Squat+Overhead Press 5kg" },
+            { id: "c2q", title: "Ciclo 2 Quema",  duration: 420, type: "cardio",   exercises: "Remo+Zancada • Lateral lunge+Raise • Golpes" },
+            { id: "c2f", title: "Ciclo 2 Fuerza", duration: 180, type: "strength", exercises: "Zancada+Remo 5kg" },
+            { id: "c3q", title: "Ciclo 3 Quema",  duration: 420, type: "cardio",   exercises: "Hip thrust • Deadlift+Punch • Reverse lunge" },
+            { id: "c3f", title: "Ciclo 3 Fuerza", duration: 180, type: "strength", exercises: "Peso muerto rumano+Fila 5kg" },
+            { id: "c4q", title: "Ciclo 4 Quema",  duration: 420, type: "cardio",   exercises: "Plank+Golpes • Dead bug • Pallof press" },
+            { id: "c4f", title: "Ciclo 4 Fuerza", duration: 180, type: "strength", exercises: "Anti-rotation Press+Lunge 5kg" },
+            { id: "c5q", title: "Ciclo 5 Quema",  duration: 300, type: "cardio",   exercises: "Sent • Punch • Lunge walking" },
+            { id: "c5f", title: "Ciclo 5 Fuerza", duration: 300, type: "strength", exercises: "Sent goblet • Remo • Combos débiles" },
+            { id: "cd",  title: "Cool-down",       duration: 600, type: "cooldown", exercises: "Caminata • Stretching • Respiración" }
         ]},
         4: { name: "Control + Técnica", blocks: [
-            { id: "w",   title: "Activación",      duration: 300,  type: "warmup",   exercises: "Golpes suave 1kg • Rodillas suave • Movilidad" },
-            { id: "c1q", title: "Ciclo 1 Quema",   duration: 420,  type: "cardio",   exercises: "Sent controlada • Lateral lunge • Stepping" },
-            { id: "c1f", title: "Ciclo 1 Fuerza",  duration: 180,  type: "strength", exercises: "Goblet Squat ultra lento 5kg" },
-            { id: "c2q", title: "Ciclo 2 Quema",   duration: 420,  type: "cardio",   exercises: "Deadlift suave • Hip thrust • Reverse lunge" },
-            { id: "c2f", title: "Ciclo 2 Fuerza",  duration: 180,  type: "strength", exercises: "Peso muerto TEMPO 5kg" },
-            { id: "c3q", title: "Ciclo 3 Quema",   duration: 420,  type: "cardio",   exercises: "Press suave • Lateral raise • Golpe suave" },
-            { id: "c3f", title: "Ciclo 3 Fuerza",  duration: 180,  type: "strength", exercises: "Press overhead ESTRICTO 5kg" },
-            { id: "c4q", title: "Ciclo 4 Quema",   duration: 420,  type: "cardio",   exercises: "Remo suave • Plank • Tracción suave" },
-            { id: "c4f", title: "Ciclo 4 Fuerza",  duration: 180,  type: "strength", exercises: "Remo bilateral CON APRIETE 5kg" },
-            { id: "c5q", title: "Ciclo 5 Quema",   duration: 300,  type: "cardio",   exercises: "Sent • Punch • Lunge" },
-            { id: "c5f", title: "Ciclo 5 Fuerza",  duration: 300,  type: "strength", exercises: "Movimientos débiles CONTROL PURO 5kg" },
-            { id: "cd",  title: "Cool-down",        duration: 600,  type: "cooldown", exercises: "Caminata • Stretching • Respiración" }
+            { id: "w",   title: "Activación",     duration: 300, type: "warmup",   exercises: "Golpes suave 1kg • Rodillas suave • Movilidad" },
+            { id: "c1q", title: "Ciclo 1 Quema",  duration: 420, type: "cardio",   exercises: "Sent controlada • Lateral lunge • Stepping" },
+            { id: "c1f", title: "Ciclo 1 Fuerza", duration: 180, type: "strength", exercises: "Goblet Squat ultra lento 5kg" },
+            { id: "c2q", title: "Ciclo 2 Quema",  duration: 420, type: "cardio",   exercises: "Deadlift suave • Hip thrust • Reverse lunge" },
+            { id: "c2f", title: "Ciclo 2 Fuerza", duration: 180, type: "strength", exercises: "Peso muerto TEMPO 5kg" },
+            { id: "c3q", title: "Ciclo 3 Quema",  duration: 420, type: "cardio",   exercises: "Press suave • Lateral raise • Golpe suave" },
+            { id: "c3f", title: "Ciclo 3 Fuerza", duration: 180, type: "strength", exercises: "Press overhead ESTRICTO 5kg" },
+            { id: "c4q", title: "Ciclo 4 Quema",  duration: 420, type: "cardio",   exercises: "Remo suave • Plank • Tracción suave" },
+            { id: "c4f", title: "Ciclo 4 Fuerza", duration: 180, type: "strength", exercises: "Remo bilateral CON APRIETE 5kg" },
+            { id: "c5q", title: "Ciclo 5 Quema",  duration: 300, type: "cardio",   exercises: "Sent • Punch • Lunge" },
+            { id: "c5f", title: "Ciclo 5 Fuerza", duration: 300, type: "strength", exercises: "Movimientos débiles CONTROL PURO 5kg" },
+            { id: "cd",  title: "Cool-down",       duration: 600, type: "cooldown", exercises: "Caminata • Stretching • Respiración" }
         ]}
     };
 
     // ── ESTADO ────────────────────────────────────────────────
     let currentRoutine = 1;
     let selectedDate = new Date();
-    let workoutData = {};      // { "YYYY-MM-DD": { r: routineId } }
+    let workoutData = {};
     let fastingState = { seconds: 0, offset: 0, started: false, startedAt: null };
     let wstate = { started: false, done: new Set() };
     let wint = {};
     let fastingInterval = null;
     let saveTimeout = null;
 
-    // ── SUPABASE SYNC ─────────────────────────────────────────
+    // ── SUPABASE ──────────────────────────────────────────────
     async function loadFromSupabase() {
         setSyncStatus('syncing', 'cargando...');
         try {
-            const { data, error } = await sb
-                .from('flow_data')
-                .select('*')
-                .eq('id', 1);
-
+            const { data, error } = await sb.from('flow_data').select('*').eq('id', 1);
             if (error) throw error;
-
             if (!data || data.length === 0) {
-                // Fila no existe, la creamos
-                const { error: insertError } = await sb
-                    .from('flow_data')
-                    .insert({ id: 1, workout_data: {}, fasting_state: {} });
-                if (insertError) throw insertError;
+                await sb.from('flow_data').insert({ id: 1, workout_data: {}, fasting_state: {} });
                 setSyncStatus('ok', 'listo');
                 return;
             }
-
             const row = data[0];
             if (row.workout_data) workoutData = row.workout_data;
             if (row.fasting_state && Object.keys(row.fasting_state).length > 0) {
@@ -286,7 +317,6 @@
                 fastingState.offset    = fs.offset    || 0;
                 fastingState.started   = fs.started   || false;
                 fastingState.startedAt = fs.startedAt || null;
-                // Si estaba corriendo, recalcular segundos transcurridos desde que se cerró
                 if (fastingState.started && fastingState.startedAt) {
                     const elapsed = Math.floor((Date.now() - new Date(fastingState.startedAt).getTime()) / 1000);
                     fastingState.seconds += elapsed;
@@ -307,9 +337,9 @@
                 id: 1,
                 workout_data: workoutData,
                 fasting_state: {
-                    seconds:   fastingState.seconds,
-                    offset:    fastingState.offset,
-                    started:   fastingState.started,
+                    seconds: fastingState.seconds,
+                    offset: fastingState.offset,
+                    started: fastingState.started,
                     startedAt: fastingState.startedAt
                 },
                 updated_at: new Date().toISOString()
@@ -327,31 +357,40 @@
         saveTimeout = setTimeout(saveToSupabase, 1500);
     }
 
-    // ── RENDER CALENDAR ───────────────────────────────────────
+    // ── CALENDARIO ────────────────────────────────────────────
+    function getDateStr(d) {
+        return d.getFullYear() + '-' +
+               String(d.getMonth() + 1).padStart(2, '0') + '-' +
+               String(d.getDate()).padStart(2, '0');
+    }
+
     function renderCal() {
         const c = document.getElementById('calendar-week');
         c.innerHTML = '';
         const today = new Date();
+        const todayStr = getDateStr(today);
+        const selStr   = getDateStr(selectedDate);
+
         for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            const ds = d.toISOString().split('T')[0];
-            const dayNum = d.getDate();
-            const isToday = d.toDateString() === today.toDateString();
+            const d  = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+            const ds = getDateStr(d);
             const btn = document.createElement('button');
             btn.className = 'calendar-day';
-            btn.textContent = dayNum;
-            if (isToday) btn.classList.add('today');
+            btn.textContent = d.getDate();
+            if (ds === todayStr) btn.classList.add('today');
+            if (ds === selStr)   btn.classList.add('selected');
             if (workoutData[ds]) btn.classList.add('completed');
-            btn.onclick = ((dateString) => () => {
-                selectedDate = new Date(dateString + 'T12:00:00');
+            btn.dataset.ds = ds;
+            btn.onclick = function() {
+                const p = this.dataset.ds.split('-');
+                selectedDate = new Date(+p[0], +p[1] - 1, +p[2]);
                 updateDate(); renderCal(); updateStats();
-            })(ds);
+            };
             c.appendChild(btn);
         }
     }
 
-    // ── RENDER ROUTINES ───────────────────────────────────────
+    // ── RUTINAS ───────────────────────────────────────────────
     function renderRoutine() {
         const r = document.getElementById('routine-selector');
         r.innerHTML = '';
@@ -364,16 +403,14 @@
         });
     }
 
-    // ── RENDER TIMELINE ───────────────────────────────────────
+    // ── TIMELINE ──────────────────────────────────────────────
     function renderTL() {
         const t = document.getElementById('timeline-container');
         t.innerHTML = '';
         routineData[currentRoutine].blocks.forEach((b, i) => {
             const el = document.createElement('div');
-            el.className = 'timeline-block';
-            if (wstate.done.has(b.id)) el.classList.add('completed');
+            el.className = 'timeline-block' + (wstate.done.has(b.id) ? ' completed' : '');
             const m = Math.floor(b.duration / 60), s = b.duration % 60;
-            const ts = `${m}:${String(s).padStart(2, '0')}`;
             const icon = b.type === 'cardio' ? '🔥' : b.type === 'strength' ? '💪' : b.type === 'warmup' ? '↻' : '✓';
             el.innerHTML = `
                 <div class="block-row">
@@ -382,125 +419,137 @@
                         <div class="block-exercises">${b.exercises}</div>
                     </div>
                     <div class="block-timer">
-                        <div class="timer-main" id="tmr${i}">${ts}</div>
+                        <div class="timer-main" id="tmr${i}">${m}:${String(s).padStart(2,'0')}</div>
                         <div class="timer-type">${icon}</div>
                     </div>
                 </div>
-                <div class="progress-bar"><div class="progress-fill" id="prg${i}"></div></div>
-                <div class="block-controls">
-                    <button class="btn-mark" onclick="togDone(${i}, '${b.id}')">✓</button>
-                </div>`;
+                <button class="btn-mark" id="mark${i}" onclick="togDone(${i},'${b.id}')">
+                    <div class="btn-mark-fill" id="prg${i}"></div>
+                    <span id="marklbl${i}">MARCAR</span>
+                </button>`;
             t.appendChild(el);
         });
     }
 
-    // ── FECHA ─────────────────────────────────────────────────
+    // ── FECHA / STATS ─────────────────────────────────────────
     function updateDate() {
         document.getElementById('current-date').textContent =
             selectedDate.toLocaleDateString('es-ES', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
     }
 
-    // ── STATS ─────────────────────────────────────────────────
     function updateStats() {
-        const today = new Date().toISOString().split('T')[0];
+        const todayStr = getDateStr(new Date());
         let streak = 0, week = 0;
         for (let i = 0; i < 365; i++) {
             const d = new Date(); d.setDate(d.getDate() - i);
-            const ds = d.toISOString().split('T')[0];
-            if (workoutData[ds]) {
-                streak++;
-            } else if (i > 0) break;
+            const ds = getDateStr(d);
+            if (workoutData[ds]) { streak++; } else if (i > 0) break;
             if (i < 7 && workoutData[ds]) week++;
         }
         document.getElementById('stat-streak').textContent = streak;
         document.getElementById('stat-total').textContent  = Object.keys(workoutData).length;
         document.getElementById('stat-week').textContent   = week;
-        document.getElementById('stat-today').textContent  = workoutData[today] ? `D${workoutData[today].r}` : '—';
+        document.getElementById('stat-today').textContent  = workoutData[todayStr] ? `D${workoutData[todayStr].r}` : '—';
     }
 
-    // ── FASTING ───────────────────────────────────────────────
-    function renderStages() {
-        const st = document.getElementById('fasting-stages');
-        st.innerHTML = '';
-        fastingStages.forEach((s, i) => {
-            const el = document.createElement('div');
-            el.className = 'stage'; el.id = `stage-${i}`;
-            el.innerHTML = `<div class="stage-fill"></div><div style="position:relative;z-index:1;font-size:6px">${s.name}</div>`;
-            st.appendChild(el);
+    // ── AYUNO ─────────────────────────────────────────────────
+    function renderFastingTicks() {
+        const container = document.getElementById('fasting-ticks');
+        container.innerHTML = '';
+        // Mostrar ticks para etapas desde la 2ª en adelante (excluir hora 0)
+        fastingStages.slice(1).forEach(s => {
+            const pct = (s.hours / FASTING_MAX_H) * 100;
+            const tick = document.createElement('div');
+            tick.className = 'fasting-tick';
+            tick.id = `ftick-${s.hours}`;
+            tick.style.left = pct + '%';
+            const isLast = s.hours === FASTING_MAX_H;
+            if (isLast) tick.style.transform = 'translateX(-90%)';
+            tick.innerHTML = `<div class="fasting-tick-line"></div><div class="fasting-tick-label">${s.hours}h<br>${s.name}</div>`;
+            container.appendChild(tick);
         });
     }
 
     function updateFasting() {
         const total = fastingState.seconds + (fastingState.offset * 3600);
-        const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+        const h = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
         document.getElementById('fasting-time').textContent =
             `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 
-        let currentIdx = 0;
+        // Etapa actual
+        let currentStage = fastingStages[0];
         for (let i = 0; i < fastingStages.length; i++) {
-            if (h >= fastingStages[i].hours) currentIdx = i; else break;
+            if (h >= fastingStages[i].hours) currentStage = fastingStages[i];
         }
-        document.getElementById('fasting-stage').textContent = fastingStages[currentIdx].name;
+        document.getElementById('fasting-stage-name').textContent = currentStage.name;
+        document.getElementById('fasting-stage-desc').textContent = currentStage.desc;
 
-        fastingStages.forEach((stage, i) => {
-            const el = document.getElementById(`stage-${i}`);
-            if (!el) return;
-            if (i < currentIdx) {
-                el.classList.add('active');
-                el.querySelector('.stage-fill').style.width = '100%';
-            } else if (i === currentIdx) {
-                el.classList.add('active');
-                const nextH = fastingStages[i + 1]?.hours || 72;
-                const pct = stage.hours === 0
-                    ? Math.min((h / (nextH)) * 100, 100)
-                    : Math.min(((h - stage.hours) / (nextH - stage.hours)) * 100, 100);
-                el.querySelector('.stage-fill').style.width = pct + '%';
-            } else {
-                el.classList.remove('active');
-                el.querySelector('.stage-fill').style.width = '0%';
-            }
+        // Barra de progreso
+        const pct = Math.min((h / FASTING_MAX_H) * 100, 100);
+        document.getElementById('fasting-fill').style.width = pct + '%';
+
+        // Ticks
+        fastingStages.slice(1).forEach(s => {
+            const tick = document.getElementById(`ftick-${s.hours}`);
+            if (!tick) return;
+            const reached = h >= s.hours;
+            const isCurrent = currentStage.hours === s.hours;
+            tick.classList.toggle('reached', reached);
+            tick.classList.toggle('current', isCurrent);
         });
     }
 
     function startFastingTimer() {
         if (fastingInterval) clearInterval(fastingInterval);
         fastingInterval = setInterval(() => {
-            if (fastingState.started) {
-                fastingState.seconds++;
-                updateFasting();
-            }
+            if (fastingState.started) { fastingState.seconds++; updateFasting(); }
         }, 1000);
     }
 
     document.getElementById('btn-fasting-start').onclick = () => {
         fastingState.started = !fastingState.started;
-        document.getElementById('btn-fasting-start').textContent = fastingState.started ? 'Pausar' : 'Ini';
-        if (fastingState.started) {
-            fastingState.startedAt = new Date().toISOString();
-        }
+        const btn = document.getElementById('btn-fasting-start');
+        btn.textContent = fastingState.started ? 'Pausar' : 'Iniciar';
+        btn.classList.toggle('active', fastingState.started);
+        if (fastingState.started) fastingState.startedAt = new Date().toISOString();
         debouncedSave();
     };
 
     document.getElementById('btn-fasting-reset').onclick = () => {
         fastingState = { seconds: 0, offset: 0, started: false, startedAt: null };
-        document.getElementById('btn-fasting-start').textContent = 'Ini';
+        const btn = document.getElementById('btn-fasting-start');
+        btn.textContent = 'Iniciar';
+        btn.classList.remove('active');
         updateFasting();
         debouncedSave();
     };
 
-    // ── WORKOUT CONTROLS ──────────────────────────────────────
+    // ── WORKOUT ───────────────────────────────────────────────
     window.togDone = function(idx, id) {
         if (wstate.done.has(id)) wstate.done.delete(id); else wstate.done.add(id);
-        // Si todos los bloques están hechos, guardar el workout del día
+        updateMarkBtn(idx, id);
+        const block = document.querySelectorAll('.timeline-block')[idx];
+        if (wstate.done.has(id)) { block.classList.add('completed'); }
+        else { block.classList.remove('completed'); }
         const allDone = routineData[currentRoutine].blocks.every(b => wstate.done.has(b.id));
         if (allDone) {
-            const today = new Date().toISOString().split('T')[0];
-            workoutData[today] = { r: currentRoutine };
-            updateStats(); renderCal();
-            debouncedSave();
+            workoutData[getDateStr(new Date())] = { r: currentRoutine };
+            updateStats(); renderCal(); debouncedSave();
         }
-        renderTL();
     };
+
+    function updateMarkBtn(idx, id) {
+        const btn  = document.getElementById(`mark${idx}`);
+        const fill = document.getElementById(`prg${idx}`);
+        const lbl  = document.getElementById(`marklbl${idx}`);
+        if (!btn) return;
+        const done = wstate.done.has(id);
+        btn.classList.toggle('done', done);
+        if (fill) fill.classList.toggle('done', done);
+        if (lbl)  lbl.textContent = done ? '✓ HECHO' : 'MARCAR';
+    }
 
     function toggleWk() {
         wstate.started = !wstate.started;
@@ -515,32 +564,28 @@
             if (!wstate.started || idx >= rt.blocks.length) {
                 wstate.started = false;
                 document.getElementById('btn-start-workout').textContent = 'INICIAR';
-                // Guardar workout completado
-                const today = new Date().toISOString().split('T')[0];
-                workoutData[today] = { r: currentRoutine };
-                updateStats(); renderCal();
-                debouncedSave();
+                workoutData[getDateStr(new Date())] = { r: currentRoutine };
+                updateStats(); renderCal(); debouncedSave();
                 return;
             }
             const b = rt.blocks[idx];
             let rem = b.duration;
             const te = document.getElementById(`tmr${idx}`);
             const pe = document.getElementById(`prg${idx}`);
-            if (te) te.classList.add('timer-active');
-            const mn = Math.floor(rem / 60), sc = rem % 60;
-            if (te) te.textContent = `${mn}:${String(sc).padStart(2,'0')}`;
+            if (te) { te.classList.add('timer-active'); te.textContent = `${Math.floor(rem/60)}:${String(rem%60).padStart(2,'0')}`; }
             wint[idx] = setInterval(() => {
                 rem--;
-                const mn = Math.floor(rem / 60), sc = rem % 60;
-                if (te) te.textContent = `${mn}:${String(sc).padStart(2,'0')}`;
+                if (te) te.textContent = `${Math.floor(rem/60)}:${String(rem%60).padStart(2,'0')}`;
                 if (pe) pe.style.width = ((b.duration - rem) / b.duration * 100) + '%';
                 if (rem <= 0) {
                     clearInterval(wint[idx]);
                     if (te) te.classList.remove('timer-active');
+                    if (pe) { pe.classList.add('done'); pe.style.width = '100%'; }
                     wstate.done.add(b.id);
-                    renderTL();
-                    idx++;
-                    next();
+                    updateMarkBtn(idx, b.id);
+                    const blk = document.querySelectorAll('.timeline-block')[idx];
+                    if (blk) blk.classList.add('completed');
+                    idx++; next();
                 }
             }, 1000);
         }
@@ -550,9 +595,7 @@
     function stopSeq() { Object.values(wint).forEach(i => clearInterval(i)); }
 
     function reset() {
-        stopSeq();
-        wstate.started = false;
-        wstate.done = new Set();
+        stopSeq(); wstate.started = false; wstate.done = new Set();
         document.getElementById('btn-start-workout').textContent = 'INICIAR';
         renderTL();
     }
@@ -560,24 +603,18 @@
     document.getElementById('btn-start-workout').onclick = toggleWk;
     document.getElementById('btn-reset-workout').onclick = reset;
     document.getElementById('btn-prev-day').onclick = () => { selectedDate.setDate(selectedDate.getDate() - 1); updateDate(); renderCal(); updateStats(); };
-    document.getElementById('btn-today').onclick = () => { selectedDate = new Date(); updateDate(); renderCal(); updateStats(); };
+    document.getElementById('btn-today').onclick    = () => { selectedDate = new Date(); updateDate(); renderCal(); updateStats(); };
     document.getElementById('btn-next-day').onclick = () => { selectedDate.setDate(selectedDate.getDate() + 1); updateDate(); renderCal(); updateStats(); };
 
     // ── INIT ──────────────────────────────────────────────────
     async function init() {
         setSyncStatus('syncing', 'conectando...');
         await loadFromSupabase();
-        updateDate();
-        renderCal();
-        renderRoutine();
-        renderTL();
-        updateStats();
-        renderStages();
-        updateFasting();
-        startFastingTimer();
-        // Actualizar botón ayuno si estaba corriendo
+        updateDate(); renderCal(); renderRoutine(); renderTL(); updateStats();
+        renderFastingTicks(); updateFasting(); startFastingTimer();
         if (fastingState.started) {
             document.getElementById('btn-fasting-start').textContent = 'Pausar';
+            document.getElementById('btn-fasting-start').classList.add('active');
         }
     }
 
