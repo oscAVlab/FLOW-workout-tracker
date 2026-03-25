@@ -47,7 +47,8 @@
         .calendar-day.today { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
         .calendar-day.selected { background: rgba(192,132,252,0.22); color: var(--accent); border-color: var(--accent); }
         .calendar-day.today.selected { background: var(--accent); color: var(--bg-primary); }
-        .calendar-day.completed::after { content: '✓'; position: absolute; top: 1px; right: 3px; font-size: 7px; color: var(--success); }
+        .calendar-day.workout-done::after { content: '✓'; position: absolute; top: 1px; right: 2px; font-size: 7px; color: var(--success); }
+        .calendar-day.fasting-done::before { content: '✓'; position: absolute; top: 1px; left: 2px; font-size: 7px; color: rgba(110,230,89,0.5); }
 
         /* AYUNO */
         .fasting-panel { background: var(--bg-secondary); border-bottom: 1px solid var(--bg-tertiary); padding: 12px 16px; flex-shrink: 0; }
@@ -57,12 +58,23 @@
         .fasting-time { font-size: 22px; font-weight: 700; color: rgba(110, 230, 89, 0.5); font-family: 'Courier New', monospace; }
         .fasting-stage-name { font-size: 10px; color: var(--accent); font-weight: 700; }
         .fasting-stage-desc { font-size: 8px; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; max-width: 220px; }
+        .fasting-meta { font-size: 8px; color: var(--text-secondary); margin-top: 4px; line-height: 1.5; }
+        .fasting-log { font-size: 8px; color: var(--success); margin-top: 3px; font-weight: 600; }
         .fasting-controls { display: flex; gap: 6px; align-items: center; margin-left: auto; }
         .btn-fasting { padding: 7px 16px; border-radius: 3px; cursor: pointer; font-size: 10px; font-weight: 700; text-transform: uppercase; transition: all 0.2s; border: 1px solid transparent; }
         .btn-fasting-start { background: var(--success); color: var(--bg-primary); border-color: var(--success); }
         .btn-fasting-start.active { background: #f87171; border-color: #f87171; }
+        .btn-fasting-close { background: var(--bg-tertiary); color: var(--accent); border-color: var(--accent); }
+        .btn-fasting-close:hover { background: var(--accent); color: var(--bg-primary); }
         .btn-fasting-reset { background: var(--bg-tertiary); color: var(--text-secondary); border-color: var(--bg-primary); }
         .btn-fasting-reset:hover { color: var(--text-primary); border-color: var(--accent); }
+        .fasting-offset-wrap { display: flex; align-items: center; gap: 3px; }
+        .offset-label { font-size: 7px; color: var(--text-secondary); text-transform: uppercase; }
+        .offset-input { width: 28px; padding: 4px 3px; background: var(--bg-tertiary); border: 1px solid var(--bg-primary); color: var(--text-primary); border-radius: 3px; font-size: 10px; text-align: center; font-family: 'Courier New', monospace; }
+        .offset-input:focus { outline: none; border-color: var(--accent); }
+        .offset-sep { color: var(--text-secondary); font-size: 10px; }
+        .btn-offset-apply { padding: 4px 7px; background: var(--bg-tertiary); border: 1px solid var(--accent); border-radius: 3px; color: var(--accent); font-size: 9px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .btn-offset-apply:hover { background: var(--accent); color: var(--bg-primary); }
 
         /* Barra progreso ayuno */
         .fasting-bar-wrap { width: 100%; }
@@ -97,12 +109,20 @@
         .routine-btn { padding: 5px 10px; background: var(--bg-tertiary); border: 1px solid var(--bg-primary); color: var(--text-secondary); border-radius: 3px; cursor: pointer; font-size: 9px; font-weight: 700; transition: all 0.2s; }
         .routine-btn:hover { border-color: var(--accent); }
         .routine-btn.active { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
+        .routine-check { font-size: 7px; color: var(--success); margin-left: 1px; }
+        .routine-btn.active .routine-check { color: var(--bg-primary); }
         .workout-actions { display: flex; gap: 6px; }
         .btn-workout { padding: 7px 16px; border-radius: 3px; cursor: pointer; font-size: 10px; font-weight: 700; text-transform: uppercase; transition: all 0.2s; }
-        .btn-iniciar { background: var(--accent); color: var(--bg-primary); border: none; }
+        .btn-iniciar { background: var(--success); color: var(--bg-primary); border: none; }
+        .btn-iniciar.paused { background: #f87171; }
         .btn-iniciar:hover { opacity: 0.9; }
         .btn-reset-w { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--bg-tertiary); }
         .btn-reset-w:hover { border-color: var(--accent); }
+        .btn-iniciar.done { background: var(--accent); }
+        .workout-total { font-size: 9px; color: var(--text-secondary); font-family: 'Courier New', monospace; display: flex; align-items: center; gap: 4px; }
+        .workout-total-time { font-size: 13px; font-weight: 700; color: rgba(110,230,89,0.5); }
+        .workout-meta { font-size: 8px; color: var(--text-secondary); line-height: 1.5; padding: 0 2px; flex-shrink: 0; }
+        .workout-meta span.accent { color: var(--accent); font-weight: 600; }
 
         .timeline-wrapper { flex: 1; display: flex; flex-direction: column; background: var(--bg-secondary); border: 1px solid var(--bg-tertiary); border-radius: 4px; overflow: hidden; min-height: 0; }
         .timeline-container { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
@@ -168,10 +188,20 @@
             <div class="fasting-time" id="fasting-time">00:00:00</div>
             <div class="fasting-stage-name" id="fasting-stage-name">Alimentado</div>
             <div class="fasting-stage-desc" id="fasting-stage-desc">Digiriendo • Insulina alta • Energía de glucosa</div>
+            <div class="fasting-meta" id="fasting-meta"></div>
+            <div class="fasting-log" id="fasting-log"></div>
         </div>
         <div class="fasting-controls">
             <button class="btn-fasting btn-fasting-start" id="btn-fasting-start">Iniciar</button>
+            <button class="btn-fasting btn-fasting-close" id="btn-fasting-close">Cerrar</button>
             <button class="btn-fasting btn-fasting-reset" id="btn-fasting-reset">Reset</button>
+            <div class="fasting-offset-wrap">
+                <span class="offset-label">+offset</span>
+                <input type="number" id="offset-h" min="0" max="23" value="0" class="offset-input" placeholder="hh">
+                <span class="offset-sep">:</span>
+                <input type="number" id="offset-m" min="0" max="59" value="0" class="offset-input" placeholder="mm">
+                <button class="btn-offset-apply" id="btn-offset-apply">OK</button>
+            </div>
         </div>
     </div>
     <div class="fasting-bar-wrap">
@@ -196,11 +226,16 @@
                 <div class="workout-title">Entrenamiento</div>
                 <div class="routine-selector" id="routine-selector"></div>
             </div>
+            <div class="workout-total">
+                <span>Total</span>
+                <span class="workout-total-time" id="workout-total-time">00:00</span>
+            </div>
             <div class="workout-actions">
                 <button class="btn-workout btn-iniciar" id="btn-start-workout">INICIAR</button>
                 <button class="btn-workout btn-reset-w" id="btn-reset-workout">RESET</button>
             </div>
         </div>
+        <div class="workout-meta" id="workout-meta"></div>
         <div class="timeline-wrapper">
             <div class="timeline-container" id="timeline-container"></div>
         </div>
@@ -295,6 +330,8 @@
     let fastingState = { seconds: 0, offset: 0, started: false, startedAt: null };
     let wstate = { started: false, done: new Set() };
     let wint = {};
+    let totalSeconds = 0;
+    let totalInterval = null;
     let fastingInterval = null;
     let saveTimeout = null;
 
@@ -379,26 +416,38 @@
             btn.textContent = d.getDate();
             if (ds === todayStr) btn.classList.add('today');
             if (ds === selStr)   btn.classList.add('selected');
-            if (workoutData[ds]) btn.classList.add('completed');
+            const dd = workoutData[ds];
+            if (dd && dd.completed) btn.classList.add('workout-done');
+            if (dd && dd.fasting)   btn.classList.add('fasting-done');
             btn.dataset.ds = ds;
             btn.onclick = function() {
                 const p = this.dataset.ds.split('-');
-                selectedDate = new Date(+p[0], +p[1] - 1, +p[2]);
-                updateDate(); renderCal(); updateStats();
+                changeDate(new Date(+p[0], +p[1] - 1, +p[2]));
             };
             c.appendChild(btn);
         }
     }
 
     // ── RUTINAS ───────────────────────────────────────────────
+    function usedThisWeek(routineId) {
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(); d.setDate(d.getDate() - i);
+            const ds = getDateStr(d);
+            if (workoutData[ds] && workoutData[ds].r === routineId && workoutData[ds].completed) return true;
+        }
+        return false;
+    }
+
     function renderRoutine() {
         const r = document.getElementById('routine-selector');
         r.innerHTML = '';
         Object.keys(routineData).forEach(id => {
+            const rid = parseInt(id);
+            const used = usedThisWeek(rid);
             const btn = document.createElement('button');
-            btn.className = 'routine-btn' + (parseInt(id) === currentRoutine ? ' active' : '');
-            btn.textContent = 'D' + id;
-            btn.onclick = () => { currentRoutine = parseInt(id); renderRoutine(); reset(); renderTL(); };
+            btn.className = 'routine-btn' + (rid === currentRoutine ? ' active' : '');
+            btn.innerHTML = `Op.${id}${used ? ' <span class="routine-check">✓</span>' : ''}`;
+            btn.onclick = () => { currentRoutine = rid; renderRoutine(); reset(); renderTL(); };
             r.appendChild(btn);
         });
     }
@@ -478,6 +527,24 @@
         document.getElementById('fasting-time').textContent =
             `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 
+        // Meta: hora de inicio real (restando offset) 
+        const metaEl = document.getElementById('fasting-meta');
+        if (metaEl) {
+            const lines = [];
+            if (fastingState.startedAt) {
+                const start = new Date(fastingState.startedAt);
+                // Hora de inicio real = hora en que se pulsó Iniciar - offset aplicado
+                const realStart = new Date(start.getTime() - (fastingState.offset * 3600000));
+                lines.push('Inicio real: ' + realStart.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }));
+                if (fastingState.offset > 0) {
+                    const oh = Math.floor(fastingState.offset);
+                    const om = Math.round((fastingState.offset - oh) * 60);
+                    lines.push(`+${String(oh).padStart(2,'0')}:${String(om).padStart(2,'0')} offset`);
+                }
+            }
+            metaEl.textContent = lines.join('  ·  ');
+        }
+
         // Etapa actual
         let currentStage = fastingStages[0];
         for (let i = 0; i < fastingStages.length; i++) {
@@ -517,11 +584,58 @@
         debouncedSave();
     };
 
+    function updateFastingLog() {
+        const logEl = document.getElementById('fasting-log');
+        if (!logEl) return;
+        const ds = getDateStr(new Date());
+        const dayData = workoutData[ds];
+        if (dayData && dayData.fasting) {
+            const f = dayData.fasting;
+            const h = Math.floor(f.totalSeconds / 3600);
+            const m = Math.floor((f.totalSeconds % 3600) / 60);
+            logEl.textContent = `✓ Ayuno cerrado: ${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m · ${f.closedAt}`;
+        } else {
+            logEl.textContent = '';
+        }
+    }
+
+    document.getElementById('btn-fasting-close').onclick = () => {
+        const total = fastingState.seconds + (fastingState.offset * 3600);
+        if (total < 60) return; // ignorar si es menos de 1 min
+        // Pausar
+        fastingState.started = false;
+        const startBtn = document.getElementById('btn-fasting-start');
+        startBtn.textContent = 'Iniciar';
+        startBtn.classList.remove('active');
+        // Registrar en workoutData del día actual
+        const ds = getDateStr(new Date());
+        const now = new Date();
+        const closedAt = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        if (!workoutData[ds]) workoutData[ds] = {};
+        workoutData[ds].fasting = {
+            totalSeconds: Math.floor(total),
+            closedAt: closedAt,
+            date: ds
+        };
+        updateFastingLog();
+        debouncedSave();
+    };
+
     document.getElementById('btn-fasting-reset').onclick = () => {
         fastingState = { seconds: 0, offset: 0, started: false, startedAt: null };
         const btn = document.getElementById('btn-fasting-start');
         btn.textContent = 'Iniciar';
         btn.classList.remove('active');
+        document.getElementById('offset-h').value = 0;
+        document.getElementById('offset-m').value = 0;
+        updateFasting();
+        debouncedSave();
+    };
+
+    document.getElementById('btn-offset-apply').onclick = () => {
+        const oh = parseInt(document.getElementById('offset-h').value) || 0;
+        const om = parseInt(document.getElementById('offset-m').value) || 0;
+        fastingState.offset = oh + (om / 60);
         updateFasting();
         debouncedSave();
     };
@@ -533,11 +647,12 @@
         const block = document.querySelectorAll('.timeline-block')[idx];
         if (wstate.done.has(id)) { block.classList.add('completed'); }
         else { block.classList.remove('completed'); }
+        // Guardar siempre el estado de bloques del día seleccionado
+        const ds = getDateStr(selectedDate);
+        const doneArr = Array.from(wstate.done);
         const allDone = routineData[currentRoutine].blocks.every(b => wstate.done.has(b.id));
-        if (allDone) {
-            workoutData[getDateStr(new Date())] = { r: currentRoutine };
-            updateStats(); renderCal(); debouncedSave();
-        }
+        workoutData[ds] = { r: currentRoutine, done: doneArr, completed: allDone };
+        updateStats(); renderCal(); debouncedSave();
     };
 
     function updateMarkBtn(idx, id) {
@@ -551,20 +666,61 @@
         if (lbl)  lbl.textContent = done ? '✓ HECHO' : 'MARCAR';
     }
 
+    function updateTotalTimer() {
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+        const el = document.getElementById('workout-total-time');
+        if (el) el.textContent = h > 0
+            ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+            : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+
+    function updateWorkoutMeta(blockIdx) {
+        const meta = document.getElementById('workout-meta');
+        if (!meta) return;
+        const rt = routineData[currentRoutine];
+        if (blockIdx >= rt.blocks.length) { meta.textContent = ''; return; }
+        const b = rt.blocks[blockIdx];
+        const icon = b.type === 'cardio' ? '🔥' : b.type === 'strength' ? '💪' : b.type === 'warmup' ? '↻' : '✓';
+        const next = rt.blocks[blockIdx + 1];
+        meta.innerHTML = `<span class="accent">${icon} ${b.title}</span> · ${b.exercises}${next ? ` <span style="color:var(--text-secondary);opacity:0.6"> → siguiente: ${next.title}</span>` : ''}`;
+    }
+
     function toggleWk() {
         wstate.started = !wstate.started;
-        document.getElementById('btn-start-workout').textContent = wstate.started ? 'PAUSAR' : 'INICIAR';
-        if (wstate.started) startSeq(); else stopSeq();
+        const btnW = document.getElementById('btn-start-workout');
+        btnW.textContent = wstate.started ? 'PAUSAR' : 'INICIAR';
+        btnW.classList.toggle('paused', wstate.started);
+        if (wstate.started) {
+            totalInterval = setInterval(() => { totalSeconds++; updateTotalTimer(); }, 1000);
+            startSeq();
+        } else {
+            clearInterval(totalInterval);
+            stopSeq();
+        }
     }
 
     function startSeq() {
         const rt = routineData[currentRoutine];
         let idx = 0;
+        updateWorkoutMeta(0);
         function next() {
+            updateWorkoutMeta(idx);
             if (!wstate.started || idx >= rt.blocks.length) {
                 wstate.started = false;
-                document.getElementById('btn-start-workout').textContent = 'INICIAR';
-                workoutData[getDateStr(new Date())] = { r: currentRoutine };
+                clearInterval(totalInterval);
+                const btnW = document.getElementById('btn-start-workout');
+                btnW.textContent = '✓ COMPLETADO';
+                btnW.classList.remove('paused');
+                btnW.classList.add('done');
+                const metaEl = document.getElementById('workout-meta');
+                if (metaEl) {
+                    const th = Math.floor(totalSeconds/3600), tm = Math.floor((totalSeconds%3600)/60);
+                    metaEl.innerHTML = `<span class="accent">✓ Completado</span> · Tiempo total: ${th > 0 ? th+'h ' : ''}${tm}min`;
+                }
+                const ds = getDateStr(selectedDate);
+                workoutData[ds] = { r: currentRoutine, done: Array.from(wstate.done), completed: true };
                 updateStats(); renderCal(); debouncedSave();
                 return;
             }
@@ -585,6 +741,9 @@
                     updateMarkBtn(idx, b.id);
                     const blk = document.querySelectorAll('.timeline-block')[idx];
                     if (blk) blk.classList.add('completed');
+                    const ds2 = getDateStr(selectedDate);
+                    workoutData[ds2] = { r: currentRoutine, done: Array.from(wstate.done), completed: false };
+                    debouncedSave();
                     idx++; next();
                 }
             }, 1000);
@@ -595,23 +754,60 @@
     function stopSeq() { Object.values(wint).forEach(i => clearInterval(i)); }
 
     function reset() {
-        stopSeq(); wstate.started = false; wstate.done = new Set();
-        document.getElementById('btn-start-workout').textContent = 'INICIAR';
+        stopSeq();
+        clearInterval(totalInterval);
+        totalSeconds = 0;
+        wstate.started = false; wstate.done = new Set();
+        const btnW = document.getElementById('btn-start-workout');
+        btnW.textContent = 'INICIAR';
+        btnW.classList.remove('paused', 'done');
+        updateTotalTimer();
+        const metaEl = document.getElementById('workout-meta');
+        if (metaEl) metaEl.textContent = '';
         renderTL();
     }
 
     document.getElementById('btn-start-workout').onclick = toggleWk;
     document.getElementById('btn-reset-workout').onclick = reset;
-    document.getElementById('btn-prev-day').onclick = () => { selectedDate.setDate(selectedDate.getDate() - 1); updateDate(); renderCal(); updateStats(); };
-    document.getElementById('btn-today').onclick    = () => { selectedDate = new Date(); updateDate(); renderCal(); updateStats(); };
-    document.getElementById('btn-next-day').onclick = () => { selectedDate.setDate(selectedDate.getDate() + 1); updateDate(); renderCal(); updateStats(); };
+    function changeDate(newDate) {
+        selectedDate = newDate;
+        wstate.started = false;
+        stopSeq();
+        clearInterval(totalInterval);
+        totalSeconds = 0;
+        updateTotalTimer();
+        const btnW = document.getElementById('btn-start-workout');
+        btnW.textContent = 'INICIAR';
+        btnW.classList.remove('paused', 'done');
+        const metaEl = document.getElementById('workout-meta');
+        if (metaEl) metaEl.textContent = '';
+        // Cargar bloques completados del día seleccionado
+        const ds = getDateStr(selectedDate);
+        const dayData = workoutData[ds];
+        wstate.done = new Set(dayData && dayData.done ? dayData.done : []);
+        updateDate(); renderCal(); updateStats(); renderTL();
+    }
+
+    document.getElementById('btn-prev-day').onclick = () => { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); changeDate(d); };
+    document.getElementById('btn-today').onclick    = () => { changeDate(new Date()); };
+    document.getElementById('btn-next-day').onclick = () => { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); changeDate(d); };
 
     // ── INIT ──────────────────────────────────────────────────
     async function init() {
         setSyncStatus('syncing', 'conectando...');
         await loadFromSupabase();
+        // Cargar bloques completados del día actual
+        const todayDs = getDateStr(selectedDate);
+        const todayData = workoutData[todayDs];
+        wstate.done = new Set(todayData && todayData.done ? todayData.done : []);
         updateDate(); renderCal(); renderRoutine(); renderTL(); updateStats();
-        renderFastingTicks(); updateFasting(); startFastingTimer();
+        renderFastingTicks(); updateFasting(); startFastingTimer(); updateFastingLog();
+        if (fastingState.offset > 0) {
+            const oh = Math.floor(fastingState.offset);
+            const om = Math.round((fastingState.offset - oh) * 60);
+            document.getElementById('offset-h').value = oh;
+            document.getElementById('offset-m').value = om;
+        }
         if (fastingState.started) {
             document.getElementById('btn-fasting-start').textContent = 'Pausar';
             document.getElementById('btn-fasting-start').classList.add('active');
