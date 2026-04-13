@@ -822,13 +822,14 @@
     let selectedDate = new Date();
     let workoutData = {};
     let fastingState = { seconds: 0, offset: 0, started: false, startedAt: null };
-    let wstate = { started: false, done: new Set() };
+    // ── FIX: wstate now tracks current block index and remaining seconds ──
+    let wstate = { started: false, done: new Set(), currentIdx: 0, currentRem: 0 };
     let wint = {};
     let totalSeconds = 0;
     let totalInterval = null;
     let fastingInterval = null;
     let saveTimeout = null;
-    let hmMonth = new Date(); // heatmap month
+    let hmMonth = new Date();
 
     // ── SUPABASE SYNC ─────────────────────────────────────────
     async function loadFromSupabase() {
@@ -1179,7 +1180,6 @@
         document.getElementById('hud-timer').textContent = `${String(sm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
         const pct = subTotal > 0 ? Math.min(((subTotal - subRem) / subTotal) * 100, 100) : 0;
         document.getElementById('hud-bar-fill').style.width = pct + '%';
-        // Next sub
         const nextEl = document.getElementById('hud-next');
         if (subIdx + 1 < b.subExercises.length) {
             nextEl.innerHTML = `Siguiente → <span>${b.subExercises[subIdx+1].name}</span>`;
@@ -1194,39 +1194,18 @@
         if (hud) hud.classList.remove('visible');
     }
 
-    function toggleWk() {
-        wstate.started = !wstate.started;
-        const btnW = document.getElementById('btn-start-workout');
-        if (wstate.started) {
-            btnW.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">pause</span> Pausar';
-            btnW.classList.add('paused');
-            totalInterval = setInterval(() => { totalSeconds++; updateTotalTimer(); }, 1000);
-            startSeq();
-        } else {
-            btnW.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">play_arrow</span> Iniciar';
-            btnW.classList.remove('paused');
-            clearInterval(totalInterval);
-            stopSeq();
-        }
-    }
-
-    function startSeq() {
+    // ── FIX: runBlock executes a single block starting at a given remaining time ──
+    // This is the core of the pause/resume fix. Instead of startSeq() always
+    // starting from idx=0 with full duration, runBlock(idx, rem) can be called
+    // with any idx and any remaining time — used both on first start and on resume.
+    function runBlock(idx, remStart) {
         const rt = routineData[currentRoutine];
-        let idx = 0;
-        updateWorkoutMeta(0);
+        updateWorkoutMeta(idx);
         const tlScroll = document.getElementById('timeline-scroll');
-        let scrollTimeout = null;
-        let userScrolling = false;
-        if (tlScroll) {
-            tlScroll.addEventListener('scroll', () => {
-                userScrolling = true;
-                if (scrollTimeout) clearTimeout(scrollTimeout);
-                scrollTimeout = setTimeout(() => { userScrolling = false; }, 5000);
-            });
-        }
-        function next() {
-            updateWorkoutMeta(idx);
-            if (!wstate.started || idx >= rt.blocks.length) {
+
+        if (!wstate.started || idx >= rt.blocks.length) {
+            // Sequence ended or was stopped externally
+            if (idx >= rt.blocks.length) {
                 wstate.started = false;
                 clearInterval(totalInterval);
                 const btnW = document.getElementById('btn-start-workout');
@@ -1243,108 +1222,156 @@
                 workoutData[ds] = { r: currentRoutine, done: Array.from(wstate.done), completed: true };
                 updateStats(); renderCal(); debouncedSave();
                 document.querySelectorAll('.tl-block').forEach(b => b.classList.remove('expanded'));
+            }
+            return;
+        }
+
+        const b = rt.blocks[idx];
+        const blk = document.querySelectorAll('.tl-block')[idx];
+
+        if (b.subExercises && b.subExercises.length > 0 && blk) blk.classList.add('expanded');
+
+        // Auto-scroll to active block
+        if (blk && tlScroll) {
+            const blockTop = blk.offsetTop - tlScroll.offsetTop;
+            tlScroll.scrollTo({ top: blockTop - 8, behavior: 'smooth' });
+        }
+
+        let rem = remStart;
+        const te = document.getElementById(`tmr${idx}`);
+        const pe = document.getElementById(`prg${idx}`);
+        if (te) { te.classList.add('timer-active'); te.textContent = `${Math.floor(rem/60)}:${String(rem%60).padStart(2,'0')}`; }
+
+        // Restore sub-timer visual state from current rem
+        function updateSubTimers() {
+            if (b.subExercises && b.subExercises.length > 0 && blk) {
+                let timeElapsed = b.duration - rem;
+                let currentSubIdx = 0;
+                let subTimeAccum = 0;
+                for (let i = 0; i < b.subExercises.length; i++) {
+                    if (timeElapsed < subTimeAccum + b.subExercises[i].time) { currentSubIdx = i; break; }
+                    subTimeAccum += b.subExercises[i].time;
+                    if (i === b.subExercises.length - 1) currentSubIdx = i; // clamp to last
+                }
+                const subExercises = blk.querySelectorAll('.sub-item');
+                let subAccum = 0;
+                subExercises.forEach((el, i) => {
+                    el.style.borderLeftColor = i === currentSubIdx ? 'var(--green)' : 'var(--accent)';
+                    el.style.background = i === currentSubIdx ? 'rgba(107,255,143,0.06)' : 'rgba(14,14,16,0.6)';
+                    const fillBar = document.getElementById(`subprg${idx}-${i}`);
+                    if (fillBar) {
+                        if (i < currentSubIdx) fillBar.style.width = '100%';
+                        else if (i === currentSubIdx) {
+                            const subTimeElapsed = timeElapsed - subAccum;
+                            fillBar.style.width = Math.min((subTimeElapsed / b.subExercises[i].time) * 100, 100) + '%';
+                        } else fillBar.style.width = '0%';
+                    }
+                    subAccum += b.subExercises[i].time;
+                });
+                const subTimeAccumFinal = (() => {
+                    let acc = 0;
+                    for (let i = 0; i < currentSubIdx; i++) acc += b.subExercises[i].time;
+                    return acc;
+                })();
+                const subTime = b.subExercises[currentSubIdx].time;
+                const subElapsed = (b.duration - rem) - subTimeAccumFinal;
+                const subRem = subTime - subElapsed;
+                const subM = Math.floor(subRem / 60), subS = subRem % 60;
+                const subTimeEl = subExercises[currentSubIdx]?.querySelector('.sub-time');
+                if (subTimeEl) subTimeEl.textContent = `${String(Math.max(0, subM)).padStart(2,'0')}:${String(Math.max(0, subS)).padStart(2,'0')}`;
+                updateActiveHUD(idx, currentSubIdx, subRem, subTime);
+            } else {
+                const hud = document.getElementById('active-hud');
+                if (hud) {
+                    hud.classList.add('visible');
+                    const icon = b.type==='cardio'?'🔥':b.type==='strength'?'💪':b.type==='warmup'?'↻':'✓';
+                    document.getElementById('hud-block-label').innerHTML = `<span class="hud-step">${icon} Bloque ${idx+1}/${rt.blocks.length}</span>`;
+                    document.getElementById('hud-sub-name').textContent = b.title;
+                    document.getElementById('hud-sub-desc').textContent = b.exercises;
+                    const rm = Math.floor(Math.max(0,rem)/60), rs = Math.max(0,rem)%60;
+                    document.getElementById('hud-timer').textContent = `${String(rm).padStart(2,'0')}:${String(rs).padStart(2,'0')}`;
+                    document.getElementById('hud-bar-fill').style.width = ((b.duration-rem)/b.duration*100)+'%';
+                    const nextBlock = rt.blocks[idx+1];
+                    document.getElementById('hud-next').innerHTML = nextBlock ? `Siguiente → <span>${nextBlock.title}</span>` : '<span>Último bloque</span>';
+                }
+            }
+        }
+
+        // Immediately render current sub state without waiting for first tick
+        updateSubTimers();
+
+        wint[idx] = setInterval(() => {
+            if (!wstate.started) {
+                // Paused — save position and stop
+                clearInterval(wint[idx]);
+                wstate.currentIdx = idx;
+                wstate.currentRem = rem;
+                if (te) te.classList.remove('timer-active');
                 return;
             }
-            const b = rt.blocks[idx];
-            const blk = document.querySelectorAll('.tl-block')[idx];
-            if (b.subExercises && b.subExercises.length > 0 && blk) blk.classList.add('expanded');
-            // Auto-scroll the timeline-scroll container to the active block
-            if (blk && tlScroll && !userScrolling) {
-                const blockTop = blk.offsetTop - tlScroll.offsetTop;
-                tlScroll.scrollTo({ top: blockTop - 8, behavior: 'smooth' });
+            rem--;
+            // Save current position on every tick so pause captures it accurately
+            wstate.currentIdx = idx;
+            wstate.currentRem = rem;
+            if (te) te.textContent = `${Math.floor(rem/60)}:${String(rem%60).padStart(2,'0')}`;
+            if (pe) pe.style.width = ((b.duration - rem) / b.duration * 100) + '%';
+            updateSubTimers();
+            if (rem <= 0) {
+                clearInterval(wint[idx]);
+                if (te) te.classList.remove('timer-active');
+                if (pe) { pe.classList.add('done'); pe.style.width = '100%'; }
+                wstate.done.add(b.id);
+                updateMarkBtn(idx, b.id);
+                if (blk) { blk.classList.add('completed'); blk.classList.remove('expanded'); }
+                const ds2 = getDateStr(selectedDate);
+                workoutData[ds2] = { r: currentRoutine, done: Array.from(wstate.done), completed: false };
+                debouncedSave();
+                runBlock(idx + 1, rt.blocks[idx + 1]?.duration || 0);
             }
-            let rem = b.duration;
-            const te = document.getElementById(`tmr${idx}`);
-            const pe = document.getElementById(`prg${idx}`);
-            if (te) { te.classList.add('timer-active'); te.textContent = `${Math.floor(rem/60)}:${String(rem%60).padStart(2,'0')}`; }
-            function updateSubTimers() {
-                if (b.subExercises && b.subExercises.length > 0 && blk) {
-                    let timeElapsed = b.duration - rem;
-                    let currentSubIdx = 0;
-                    let subTimeAccum = 0;
-                    for (let i = 0; i < b.subExercises.length; i++) {
-                        if (timeElapsed < subTimeAccum + b.subExercises[i].time) { currentSubIdx = i; break; }
-                        subTimeAccum += b.subExercises[i].time;
-                    }
-                    const subExercises = blk.querySelectorAll('.sub-item');
-                    let subAccum = 0;
-                    subExercises.forEach((el, i) => {
-                        el.style.borderLeftColor = i === currentSubIdx ? 'var(--green)' : 'var(--accent)';
-                        el.style.background = i === currentSubIdx ? 'rgba(107,255,143,0.06)' : 'rgba(14,14,16,0.6)';
-                        // Auto-scroll scoped to timeline-scroll only
-                        if (i === currentSubIdx && !userScrolling && tlScroll) {
-                            const elTop = el.getBoundingClientRect().top;
-                            const containerTop = tlScroll.getBoundingClientRect().top;
-                            const containerBottom = tlScroll.getBoundingClientRect().bottom;
-                            if (elTop < containerTop || elTop > containerBottom - 60) {
-                                const scrollTarget = tlScroll.scrollTop + (elTop - containerTop) - 40;
-                                tlScroll.scrollTo({ top: scrollTarget, behavior: 'smooth' });
-                            }
-                        }
-                        const fillBar = document.getElementById(`subprg${idx}-${i}`);
-                        if (fillBar) {
-                            if (i < currentSubIdx) fillBar.style.width = '100%';
-                            else if (i === currentSubIdx) {
-                                const subTimeElapsed = timeElapsed - subAccum;
-                                fillBar.style.width = Math.min((subTimeElapsed / b.subExercises[i].time) * 100, 100) + '%';
-                            } else fillBar.style.width = '0%';
-                        }
-                        subAccum += b.subExercises[i].time;
-                    });
-                    const subTime = b.subExercises[currentSubIdx].time;
-                    const subElapsed = timeElapsed - (subTimeAccum);
-                    const subRem = subTime - subElapsed;
-                    const subM = Math.floor(subRem / 60), subS = subRem % 60;
-                    const subTimeEl = subExercises[currentSubIdx]?.querySelector('.sub-time');
-                    if (subTimeEl) subTimeEl.textContent = `${String(Math.max(0, subM)).padStart(2,'0')}:${String(Math.max(0, subS)).padStart(2,'0')}`;
-                    // Update the big HUD
-                    updateActiveHUD(idx, currentSubIdx, subRem, subTime);
-                } else {
-                    // Block without sub-exercises — show block-level HUD
-                    const hud = document.getElementById('active-hud');
-                    if (hud) {
-                        hud.classList.add('visible');
-                        const icon = b.type==='cardio'?'🔥':b.type==='strength'?'💪':b.type==='warmup'?'↻':'✓';
-                        document.getElementById('hud-block-label').innerHTML = `<span class="hud-step">${icon} Bloque ${idx+1}/${rt.blocks.length}</span>`;
-                        document.getElementById('hud-sub-name').textContent = b.title;
-                        document.getElementById('hud-sub-desc').textContent = b.exercises;
-                        const rm = Math.floor(Math.max(0,rem)/60), rs = Math.max(0,rem)%60;
-                        document.getElementById('hud-timer').textContent = `${String(rm).padStart(2,'0')}:${String(rs).padStart(2,'0')}`;
-                        document.getElementById('hud-bar-fill').style.width = ((b.duration-rem)/b.duration*100)+'%';
-                        const nextBlock = rt.blocks[idx+1];
-                        document.getElementById('hud-next').innerHTML = nextBlock ? `Siguiente → <span>${nextBlock.title}</span>` : '<span>Último bloque</span>';
-                    }
-                }
-            }
-            wint[idx] = setInterval(() => {
-                rem--;
-                if (te) te.textContent = `${Math.floor(rem/60)}:${String(rem%60).padStart(2,'0')}`;
-                if (pe) pe.style.width = ((b.duration - rem) / b.duration * 100) + '%';
-                updateSubTimers();
-                if (rem <= 0) {
-                    clearInterval(wint[idx]);
-                    if (te) te.classList.remove('timer-active');
-                    if (pe) { pe.classList.add('done'); pe.style.width = '100%'; }
-                    wstate.done.add(b.id);
-                    updateMarkBtn(idx, b.id);
-                    if (blk) { blk.classList.add('completed'); blk.classList.remove('expanded'); }
-                    const ds2 = getDateStr(selectedDate);
-                    workoutData[ds2] = { r: currentRoutine, done: Array.from(wstate.done), completed: false };
-                    debouncedSave();
-                    idx++; next();
-                }
-            }, 1000);
-        }
-        next();
+        }, 1000);
     }
 
-    function stopSeq() { Object.values(wint).forEach(i => clearInterval(i)); }
+    function startSeq() {
+        const rt = routineData[currentRoutine];
+        // Set up scroll user-detection on the timeline container
+        const tlScroll = document.getElementById('timeline-scroll');
+        let userScrolling = false;
+        let scrollTimeout = null;
+        if (tlScroll) {
+            tlScroll.addEventListener('scroll', () => {
+                userScrolling = true;
+                if (scrollTimeout) clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => { userScrolling = false; }, 5000);
+            });
+        }
+        runBlock(0, rt.blocks[0].duration);
+    }
+
+    // ── FIX: resumeSeq restarts runBlock from saved position ──
+    function resumeSeq() {
+        const rt = routineData[currentRoutine];
+        const idx = wstate.currentIdx;
+        // Use saved remaining time; fall back to full block duration if not set
+        const rem = (wstate.currentRem > 0) ? wstate.currentRem : rt.blocks[idx].duration;
+        runBlock(idx, rem);
+    }
+
+    // ── FIX: stopSeq saves position before clearing intervals ──
+    function stopSeq() {
+        // Save current position before killing intervals
+        // (runBlock also saves per-tick, but this is a safety net)
+        Object.values(wint).forEach(i => clearInterval(i));
+    }
 
     function reset() {
         stopSeq();
         clearInterval(totalInterval);
         totalSeconds = 0;
-        wstate.started = false; wstate.done = new Set();
+        // ── FIX: clear saved position ──
+        wstate.started = false;
+        wstate.done = new Set();
+        wstate.currentIdx = 0;
+        wstate.currentRem = 0;
         const btnW = document.getElementById('btn-start-workout');
         btnW.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">play_arrow</span> Iniciar';
         btnW.classList.remove('paused', 'done');
@@ -1353,6 +1380,29 @@
         const metaEl = document.getElementById('workout-meta');
         if (metaEl) metaEl.textContent = '';
         renderTL();
+    }
+
+    // ── FIX: toggleWk now uses resumeSeq() instead of startSeq() when resuming ──
+    function toggleWk() {
+        wstate.started = !wstate.started;
+        const btnW = document.getElementById('btn-start-workout');
+        if (wstate.started) {
+            btnW.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">pause</span> Pausar';
+            btnW.classList.add('paused');
+            totalInterval = setInterval(() => { totalSeconds++; updateTotalTimer(); }, 1000);
+            // First start: currentIdx is 0 and currentRem is 0 → use startSeq
+            // Resume after pause: currentRem > 0 → use resumeSeq
+            if (wstate.currentRem > 0) {
+                resumeSeq();
+            } else {
+                startSeq();
+            }
+        } else {
+            btnW.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">play_arrow</span> Iniciar';
+            btnW.classList.remove('paused');
+            clearInterval(totalInterval);
+            stopSeq();
+        }
     }
 
     document.getElementById('btn-start-workout').onclick = toggleWk;
@@ -1364,6 +1414,8 @@
         stopSeq();
         clearInterval(totalInterval);
         totalSeconds = 0;
+        wstate.currentIdx = 0;
+        wstate.currentRem = 0;
         updateTotalTimer();
         hideActiveHUD();
         const btnW = document.getElementById('btn-start-workout');
@@ -1411,7 +1463,6 @@
     // ── DATA VISUALIZATIONS ───────────────────────────────────
     function renderAllViz() { renderHeatmap(); renderWeeklyChart(); renderFastingHistory(); renderDonut(); }
 
-    // HEATMAP
     function renderHeatmap() {
         const grid = document.getElementById('heatmap-grid');
         grid.innerHTML = '';
@@ -1420,8 +1471,8 @@
         const headers = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
         headers.forEach(h => { const el = document.createElement('div'); el.className = 'heatmap-header'; el.textContent = h; grid.appendChild(el); });
         const firstDay = new Date(year, month, 1);
-        let startDay = firstDay.getDay(); // 0=Sun
-        startDay = startDay === 0 ? 6 : startDay - 1; // convert to Mon=0
+        let startDay = firstDay.getDay();
+        startDay = startDay === 0 ? 6 : startDay - 1;
         for (let i = 0; i < startDay; i++) { const el = document.createElement('div'); el.className = 'heatmap-cell empty'; grid.appendChild(el); }
         const daysInMonth = new Date(year, month+1, 0).getDate();
         const todayStr = getDateStr(new Date());
@@ -1440,7 +1491,6 @@
     document.getElementById('hm-prev').onclick = () => { hmMonth.setMonth(hmMonth.getMonth()-1); renderHeatmap(); };
     document.getElementById('hm-next').onclick = () => { hmMonth.setMonth(hmMonth.getMonth()+1); renderHeatmap(); };
 
-    // WEEKLY CHART
     function renderWeeklyChart() {
         const container = document.getElementById('week-chart');
         container.innerHTML = '';
@@ -1458,7 +1508,6 @@
             const label = weekStart.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
             weeks.push({ count, label });
         }
-        const maxCount = Math.max(...weeks.map(w => w.count), 1);
         weeks.forEach(w => {
             const col = document.createElement('div');
             col.className = 'week-bar-col';
@@ -1469,7 +1518,6 @@
         });
     }
 
-    // FASTING HISTORY
     function renderFastingHistory() {
         const container = document.getElementById('fasting-history');
         container.innerHTML = '';
@@ -1494,7 +1542,6 @@
         });
     }
 
-    // DONUT CHART
     function renderDonut() {
         const wrap = document.getElementById('donut-wrap');
         wrap.innerHTML = '';
@@ -1505,8 +1552,6 @@
         });
         const total = Object.values(counts).reduce((a, b) => a + b, 0);
         if (total === 0) { wrap.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:11px;padding:20px;">Sin datos de rutinas completadas</div>'; return; }
-
-        // SVG Donut
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('viewBox', '0 0 130 130');
         svg.classList.add('donut-svg');
@@ -1523,11 +1568,9 @@
             circle.setAttribute('stroke-dasharray', `${dashLen} ${circumference - dashLen}`);
             circle.setAttribute('stroke-dashoffset', -offset);
             circle.setAttribute('transform', `rotate(-90 ${cx} ${cy})`);
-            circle.style.transition = 'stroke-dasharray 0.5s ease';
             svg.appendChild(circle);
             offset += dashLen;
         });
-        // Center text
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('x', cx); text.setAttribute('y', cy - 4);
         text.setAttribute('text-anchor', 'middle'); text.setAttribute('fill', '#f9f5f8');
@@ -1541,8 +1584,6 @@
         text2.textContent = 'TOTAL';
         svg.appendChild(text2);
         wrap.appendChild(svg);
-
-        // Legend
         const legend = document.createElement('div');
         legend.className = 'donut-legend';
         Object.entries(counts).forEach(([rid, count]) => {
